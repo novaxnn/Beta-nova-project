@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NOVA — Anime Upscaler</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#07050f">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  @import url('https://fonts.cdnfonts.com/css/lemonmilk');
+
+  :root{
+    --void-950:#07050f;
+    --void-900:#0e0a1c;
+    --void-800:#181128;
+    --void-700:#231a37;
+    --line:#332a4a;
+    --starlight:#f5f2ff;
+    --dim:#9b91b8;
+    --magenta:#ff3d81;
+    --orange:#ff9a3d;
+    --violet:#8c52ff;
+    --cyan:#4fe0e8;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--void-950);
+    color:var(--starlight);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+    position:relative;
+    overflow-x:hidden;
+  }
+
+  /* supernova backdrop */
+  body::before{
+    content:'';
+    position:fixed;
+    top:-30%;left:50%;
+    width:900px;height:900px;
+    transform:translateX(-50%);
+    background:radial-gradient(circle, rgba(255,61,129,.35) 0%, rgba(140,82,255,.22) 35%, rgba(255,154,61,.10) 55%, transparent 72%);
+    filter:blur(10px);
+    pointer-events:none;
+    z-index:0;
+  }
+  body::after{
+    content:'';
+    position:fixed;
+    inset:0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, rgba(255,255,255,.5), transparent),
+      radial-gradient(1px 1px at 70% 15%, rgba(255,255,255,.4), transparent),
+      radial-gradient(1.5px 1.5px at 40% 70%, rgba(255,255,255,.35), transparent),
+      radial-gradient(1px 1px at 85% 60%, rgba(255,255,255,.3), transparent),
+      radial-gradient(1px 1px at 10% 85%, rgba(255,255,255,.3), transparent),
+      radial-gradient(1.5px 1.5px at 60% 45%, rgba(255,255,255,.25), transparent);
+    pointer-events:none;
+    z-index:0;
+  }
+
+  .wrap{max-width:920px;margin:0 auto;padding:30px 18px 40px;position:relative;z-index:1;}
+
+  header{margin-bottom:26px;position:relative;}
+  .lang-btn{
+    position:absolute;top:0;right:0;
+    background:var(--void-700);
+    border:1px solid var(--line);
+    color:var(--starlight);
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:11px;
+    padding:7px 12px;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  .lang-btn:hover{border-color:var(--cyan);}
+  .beta-tag{
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:8.5px;
+    background:var(--orange);
+    color:var(--void-950);
+    padding:1px 5px;
+    border-radius:5px;
+    margin-left:4px;
+    vertical-align:middle;
+  }
+  .kicker{
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:11px;
+    letter-spacing:.06em;
+    color:var(--cyan);
+    margin:0 0 10px;
+  }
+  h1{
+    font-family:'Lemon/Milk',sans-serif;
+    font-weight:700;
+    font-size:clamp(28px,8vw,42px);
+    line-height:1.15;
+    margin:0 0 12px;
+    background:linear-gradient(100deg, var(--starlight) 20%, var(--magenta) 60%, var(--orange) 90%);
+    -webkit-background-clip:text;
+    background-clip:text;
+    color:transparent;
+  }
+  .sub{
+    color:var(--dim);
+    font-size:14.5px;
+    line-height:1.6;
+    max-width:56ch;
+  }
+
+  .panel{
+    background:var(--void-800);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .panel h2{
+    font-family:'Lemon/Milk',sans-serif;
+    font-weight:400;
+    font-size:11.5px;
+    letter-spacing:.03em;
+    color:var(--dim);
+    margin:0 0 14px;
+    display:flex;
+    align-items:center;
+    gap:9px;
+  }
+  .panel h2 .n{
+    color:var(--void-950);
+    background:linear-gradient(135deg, var(--magenta), var(--orange));
+    width:20px;height:20px;
+    border-radius:50%;
+    display:inline-flex;
+    align-items:center;justify-content:center;
+    font-family:'Inter',sans-serif;
+    font-size:11px;
+    font-weight:700;
+  }
+
+  /* mode toggle */
+  .mode-row{display:flex;gap:8px;margin-bottom:14px;}
+  .mode-btn{
+    flex:1;
+    border:1px solid var(--line);
+    background:var(--void-700);
+    color:var(--dim);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13px;
+    padding:10px 0;
+    border-radius:9px;
+    cursor:pointer;
+  }
+  .mode-btn.sel{
+    border-color:var(--magenta);
+    color:var(--starlight);
+    background:linear-gradient(135deg, rgba(255,61,129,.18), rgba(140,82,255,.14));
+  }
+
+  /* dropzone */
+  .drop{
+    border:1.5px dashed var(--line);
+    border-radius:12px;
+    padding:26px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+    position:relative;
+  }
+  .drop:hover, .drop.drag{
+    border-color:var(--magenta);
+    background:rgba(255,61,129,.05);
+  }
+  .drop input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+  .drop p{margin:0;color:var(--dim);font-size:13.5px;}
+  .drop .big{color:var(--starlight);font-size:14.5px;margin-bottom:4px;}
+
+  .preview-row{display:flex;gap:12px;margin-top:14px;flex-wrap:wrap;}
+  .thumb{width:84px;height:84px;border-radius:10px;object-fit:cover;border:1px solid var(--line);}
+  video.thumb{background:#000;}
+
+  .opt-label{
+    font-size:11px;
+    font-family:'Lemon/Milk',sans-serif;
+    color:var(--dim);
+    letter-spacing:.03em;
+    margin:0 0 8px;
+  }
+  .opt-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(135px,1fr));
+    gap:8px;
+    margin-bottom:16px;
+  }
+  .opt-grid:last-child{margin-bottom:0;}
+  .opt-card{
+    border:1px solid var(--line);
+    background:var(--void-700);
+    border-radius:10px;
+    padding:11px 12px;
+    cursor:pointer;
+    transition:border-color .12s ease, background .12s ease;
+  }
+  .opt-card:hover{border-color:var(--violet);}
+  .opt-card.sel{
+    border-color:var(--magenta);
+    background:linear-gradient(160deg, rgba(255,61,129,.14), rgba(140,82,255,.08));
+  }
+  .opt-card .name{font-size:13.5px;font-weight:600;color:var(--starlight);margin-bottom:3px;}
+  .opt-card.sel .name{color:var(--magenta);}
+  .opt-card .badge{
+    display:inline-block;
+    font-size:9.5px;
+    font-family:'Lemon/Milk',sans-serif;
+    color:var(--void-950);
+    background:var(--cyan);
+    padding:1px 6px;
+    border-radius:5px;
+    margin-left:6px;
+    vertical-align:middle;
+  }
+  .opt-card .desc{font-size:11.5px;color:var(--dim);line-height:1.35;}
+  .opt-preview{
+    width:100%;
+    border-radius:6px;
+    margin-bottom:8px;
+    display:block;
+  }
+
+  .scale-row{display:flex;gap:8px;}
+  .scale-btn{
+    flex:1;
+    border:1px solid var(--line);
+    background:var(--void-700);
+    color:var(--starlight);
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:13px;
+    padding:11px 0;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .scale-btn.sel{
+    border-color:var(--cyan);
+    color:var(--cyan);
+    background:rgba(79,224,232,.08);
+  }
+
+  /* colab connect */
+  .colab-btn{
+    width:100%;
+    background:var(--void-700);
+    border:1px solid var(--violet);
+    color:var(--starlight);
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:14px;
+    padding:13px 0;
+    border-radius:10px;
+    cursor:pointer;
+    margin-bottom:10px;
+  }
+  input[type=text]{
+    width:100%;
+    background:var(--void-700);
+    border:1px solid var(--line);
+    color:var(--starlight);
+    font-family:'Inter',sans-serif;
+    font-size:13px;
+    padding:12px 12px;
+    border-radius:10px;
+    outline:none;
+  }
+  input[type=text]:focus{border-color:var(--cyan);}
+  input[type=text]::placeholder{color:#5a5470;}
+  .conn-dot{
+    display:inline-block;width:8px;height:8px;border-radius:50%;
+    background:#5a5470;margin-right:6px;
+  }
+  .conn-dot.ok{background:var(--cyan);box-shadow:0 0 8px var(--cyan);}
+  .conn-label{font-size:12px;color:var(--dim);margin-top:10px;display:flex;align-items:center;}
+  .hint{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5;}
+
+  .run-btn{
+    width:100%;
+    background:linear-gradient(100deg, var(--magenta), var(--orange));
+    color:var(--void-950);
+    border:none;
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:14px;
+    padding:16px 0;
+    border-radius:12px;
+    cursor:pointer;
+    transition:transform .08s ease, opacity .12s ease;
+  }
+  .run-btn:active{transform:scale(.98);}
+  .run-btn:disabled{
+    background:var(--void-700);
+    color:var(--dim);
+    cursor:not-allowed;
+  }
+
+  .status{
+    font-family:'Inter',sans-serif;
+    font-size:12.5px;
+    color:var(--orange);
+    margin-top:12px;
+    display:none;
+    line-height:1.5;
+  }
+  .status.show{display:block;}
+  .status.err{color:var(--magenta);}
+  .status.ok{color:var(--cyan);}
+
+  .progress-wrap{
+    display:none;
+    margin-top:14px;
+    background:var(--void-800);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:14px 16px;
+  }
+  .progress-wrap.show{display:block;}
+  .progress-top{
+    display:flex;justify-content:space-between;align-items:baseline;
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:15px;
+    color:var(--starlight);
+    margin-bottom:9px;
+  }
+  #progressEta{font-family:'Inter',sans-serif;font-size:11.5px;color:var(--dim);font-weight:500;}
+  .progress-track{
+    width:100%;height:8px;border-radius:999px;
+    background:var(--void-700);overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;width:0%;
+    background:linear-gradient(90deg, var(--magenta), var(--orange));
+    transition:width .25s ease;
+  }
+  .mem-row{
+    display:flex;justify-content:space-between;
+    margin-top:10px;
+    font-size:11.5px;
+    font-family:'Inter',sans-serif;
+  }
+  .mem-label{font-family:'Lemon/Milk',sans-serif;font-size:10px;color:var(--dim);}
+  #memText{color:var(--cyan);}
+
+  .result{display:none;}
+  .result.show{display:block;}
+  .compare{
+    position:relative;
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid var(--line);
+    background:#000;
+    touch-action:pan-y;
+  }
+  .compare img, .compare video{display:block;width:100%;height:auto;}
+  .compare .after-wrap{
+    position:absolute;top:0;left:0;height:100%;
+    overflow:hidden;width:50%;
+    border-right:2px solid var(--magenta);
+  }
+  .compare .after-wrap img{width:var(--imgw,100%);max-width:none;height:100%;object-fit:cover;}
+  .compare .tag{
+    position:absolute;top:8px;
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:9.5px;
+    background:rgba(7,5,15,.8);
+    color:var(--starlight);
+    padding:4px 8px;
+    border-radius:6px;
+    letter-spacing:.03em;
+  }
+  .tag.left{left:8px;}
+  .tag.right{right:8px;}
+  .slider{width:100%;margin-top:10px;accent-color:var(--magenta);}
+  .dl-btn{
+    display:inline-block;margin-top:12px;
+    background:var(--void-700);
+    border:1px solid var(--cyan);
+    color:var(--cyan);
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:11.5px;
+    padding:10px 16px;
+    border-radius:9px;
+    text-decoration:none;
+    cursor:pointer;
+  }
+
+  .setup-note{font-size:12.5px;color:var(--dim);line-height:1.6;}
+  .setup-note code{
+    background:var(--void-700);
+    padding:1px 6px;
+    border-radius:5px;
+    font-family:'Inter',sans-serif;
+    font-size:11.5px;
+    color:var(--cyan);
+  }
+
+  footer{
+    text-align:center;
+    padding:26px 0 10px;
+    position:relative;
+    z-index:1;
+  }
+  footer .tt{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    color:var(--starlight);
+    text-decoration:none;
+    font-family:'Lemon/Milk',sans-serif;
+    font-size:13px;
+    padding:10px 18px;
+    border:1px solid var(--line);
+    border-radius:999px;
+    transition:border-color .15s ease;
+  }
+  footer .tt:hover{border-color:var(--magenta);}
+  footer .tt svg{width:16px;height:16px;fill:var(--starlight);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <button class="lang-btn" id="langBtn">EN</button>
+    <h1 id="appTitle">NOVA UPSCALER</h1>
+  </header>
+
+  <div class="panel">
+    <h2 id="h2-upload"><span class="n">1</span> NE YÜKLEYECEKSİN</h2>
+    <div class="mode-row">
+      <button class="mode-btn sel" id="modeImage">Görsel</button>
+      <button class="mode-btn" id="modeVideo">Video</button>
+    </div>
+    <div class="drop" id="drop">
+      <input type="file" id="fileInput" accept="image/*">
+      <p class="big" id="dropBig">Dokunup seç ya da sürükle bırak</p>
+      <p id="dropSub">PNG, JPG · tek kare</p>
+    </div>
+    <div class="preview-row" id="previewRow"></div>
+  </div>
+
+  <div class="panel">
+    <h2 id="h2-model"><span class="n">2</span> MODEL SEÇ</h2>
+    <div class="opt-grid" id="modelGrid">
+      <div class="opt-card sel" data-model="realesrgan-anime">
+        <svg class="opt-preview" viewBox="0 0 120 68">
+          <defs>
+            <filter id="blur-re"><feGaussianBlur stdDeviation="1.6"/></filter>
+            <clipPath id="clipL-re"><rect x="0" y="0" width="60" height="68"/></clipPath>
+            <clipPath id="clipR-re"><rect x="60" y="0" width="60" height="68"/></clipPath>
+          </defs>
+          <rect width="120" height="68" fill="#1c1430"/>
+          <g clip-path="url(#clipL-re)" filter="url(#blur-re)" opacity="0.65">
+            <path d="M10 50 L35 20 L55 38 L75 15 L110 45" stroke="#c9c4da" stroke-width="4.5" fill="none" stroke-linejoin="round"/>
+            <circle cx="90" cy="22" r="9" fill="#c9c4da"/>
+          </g>
+          <g clip-path="url(#clipR-re)">
+            <path d="M10 50 L35 20 L55 38 L75 15 L110 45" stroke="#ff7597" stroke-width="3" fill="none" stroke-linejoin="round"/>
+            <circle cx="90" cy="22" r="8" fill="#ffb35c"/>
+          </g>
+          <line x1="60" y1="0" x2="60" y2="68" stroke="#f5f2ff" stroke-width="1" stroke-dasharray="2,2" opacity="0.55"/>
+          <text x="5" y="12" fill="#9b91b8" font-size="7" font-family="monospace">BEFORE</text>
+          <text x="88" y="12" fill="#f5f2ff" font-size="7" font-family="monospace">AFTER</text>
+        </svg>
+        <div class="name">Real-ESRGAN</div>
+        <div class="desc" id="desc-re">Düz renk + çizgi sanatı korur, en dengeli seçim</div>
+      </div>
+      <div class="opt-card" data-model="waifu2x">
+        <svg class="opt-preview" viewBox="0 0 120 68">
+          <defs>
+            <filter id="blur-wf"><feGaussianBlur stdDeviation="1.6"/></filter>
+            <clipPath id="clipL-wf"><rect x="0" y="0" width="60" height="68"/></clipPath>
+            <clipPath id="clipR-wf"><rect x="60" y="0" width="60" height="68"/></clipPath>
+          </defs>
+          <rect width="120" height="68" fill="#1c1430"/>
+          <g clip-path="url(#clipL-wf)" filter="url(#blur-wf)" opacity="0.65">
+            <path d="M10 50 L35 20 L55 38 L75 15 L110 45" stroke="#c9c4da" stroke-width="4.5" fill="none" stroke-linejoin="round"/>
+            <circle cx="90" cy="22" r="9" fill="#c9c4da"/>
+          </g>
+          <g clip-path="url(#clipR-wf)">
+            <path d="M10 50 L35 20 L55 38 L75 15 L110 45" stroke="#f5f2ff" stroke-width="1.2" fill="none" stroke-linejoin="miter"/>
+            <circle cx="90" cy="22" r="8" fill="#ffb35c" stroke="#f5f2ff" stroke-width="0.8"/>
+          </g>
+          <line x1="60" y1="0" x2="60" y2="68" stroke="#f5f2ff" stroke-width="1" stroke-dasharray="2,2" opacity="0.55"/>
+          <text x="5" y="12" fill="#9b91b8" font-size="7" font-family="monospace">BEFORE</text>
+          <text x="88" y="12" fill="#f5f2ff" font-size="7" font-family="monospace">AFTER</text>
+        </svg>
+        <div class="name">Waifu2x<span class="badge" id="badge-wf">EN NET</span></div>
+        <div class="desc" id="desc-wf">Çizgi netliğinde en iyisi, tekil kareler için</div>
+      </div>
+      <div class="opt-card" data-model="anime4k">
+        <svg class="opt-preview" viewBox="0 0 120 68">
+          <defs>
+            <filter id="blur-a4"><feGaussianBlur stdDeviation="1.6"/></filter>
+            <clipPath id="clipL-a4"><rect x="0" y="0" width="60" height="68"/></clipPath>
+            <clipPath id="clipR-a4"><rect x="60" y="0" width="60" height="68"/></clipPath>
+          </defs>
+          <rect width="120" height="68" fill="#1c1430"/>
+          <g clip-path="url(#clipL-a4)" filter="url(#blur-a4)" opacity="0.65">
+            <path d="M10 50 L35 20 L55 38 L75 15 L110 45" stroke="#c9c4da" stroke-width="4.5" fill="none" stroke-linejoin="round"/>
+            <circle cx="90" cy="22" r="9" fill="#c9c4da"/>
+          </g>
+          <g clip-path="url(#clipR-a4)">
+            <path d="M10 50 L35 20 L55 38 L75 15 L110 45" stroke="#4fe0e8" stroke-width="3.5" fill="none" stroke-linejoin="round" opacity="0.9"/>
+            <circle cx="90" cy="22" r="8" fill="#ffb35c" opacity="0.9"/>
+          </g>
+          <line x1="60" y1="0" x2="60" y2="68" stroke="#f5f2ff" stroke-width="1" stroke-dasharray="2,2" opacity="0.55"/>
+          <text x="5" y="12" fill="#9b91b8" font-size="7" font-family="monospace">BEFORE</text>
+          <text x="88" y="12" fill="#f5f2ff" font-size="7" font-family="monospace">AFTER</text>
+        </svg>
+        <div class="name">Anime4K</div>
+        <div class="desc" id="desc-a4">En hızlı, canlı oynatım için optimize</div>
+      </div>
+      <div class="opt-card" data-model="realesr-animevideo">
+        <svg class="opt-preview" viewBox="0 0 120 68">
+          <defs>
+            <filter id="blur-vid"><feGaussianBlur stdDeviation="1.6"/></filter>
+            <clipPath id="clipL-vid"><rect x="0" y="0" width="60" height="68"/></clipPath>
+            <clipPath id="clipR-vid"><rect x="60" y="0" width="60" height="68"/></clipPath>
+          </defs>
+          <rect width="120" height="68" fill="#1c1430"/>
+          <g clip-path="url(#clipL-vid)" filter="url(#blur-vid)" opacity="0.65">
+            <path d="M10 50 L35 20 L55 38 L75 15 L110 45" stroke="#c9c4da" stroke-width="4.5" fill="none" stroke-linejoin="round"/>
+            <circle cx="90" cy="22" r="9" fill="#c9c4da"/>
+          </g>
+          <g clip-path="url(#clipR-vid)">
+            <path d="M10 50 L35 20 L55 38 L75 15 L110 45" stroke="#8c52ff" stroke-width="3" fill="none" stroke-linejoin="round"/>
+            <rect x="98" y="50" width="14" height="10" rx="2" fill="none" stroke="#8c52ff" stroke-width="1.5"/>
+          </g>
+          <line x1="60" y1="0" x2="60" y2="68" stroke="#f5f2ff" stroke-width="1" stroke-dasharray="2,2" opacity="0.55"/>
+          <text x="5" y="12" fill="#9b91b8" font-size="7" font-family="monospace">BEFORE</text>
+          <text x="88" y="12" fill="#f5f2ff" font-size="7" font-family="monospace">AFTER</text>
+        </svg>
+        <div class="name">RealESR-Video<span class="badge" id="badge-vid">VİDEO</span></div>
+        <div class="desc" id="desc-vid">Video karesi tutarlılığı önceliği</div>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:2px;" id="hint-models">Görseller temsilidir, gerçek çıktı değildir — her modelin karakteristik farkını göstermek için.</p>
+
+    <p class="opt-label" id="lbl-scale">ÖLÇEK</p>
+    <div class="scale-row">
+      <button class="scale-btn sel" data-scale="2">2×</button>
+      <button class="scale-btn" data-scale="4">4×</button>
+      <button class="scale-btn" data-scale="8">8×</button>
+    </div>
+  </div>
+
+  <div class="panel" id="whereRunPanel">
+    <h2 id="h2-where"><span class="n">3</span> NEREDE ÇALIŞSIN</h2>
+    <div class="mode-row">
+      <button class="mode-btn sel" id="whereDevice">Cihazda (GPU)</button>
+      <button class="mode-btn" id="whereCloud">Colab</button>
+    </div>
+  </div>
+
+  <div class="panel" id="colabPanel">
+    <h2 id="h2-colab"><span class="n">4</span> COLAB'A BAĞLAN</h2>
+    <button class="colab-btn" id="openColabBtn">↗ Colab notebook'unu aç</button>
+    <input type="text" id="endpoint" placeholder="https://xxxxx.gradio.live">
+    <p class="conn-label"><span class="conn-dot" id="connDot"></span><span id="connText">Bağlı değil</span></p>
+  </div>
+
+  <button class="run-btn" id="runBtn" disabled>Önce görsel/video yükle</button>
+  <div class="status" id="status"></div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-top">
+      <span id="progressPct">0%</span>
+      <span id="progressEta">—</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="mem-row">
+      <span class="mem-label" id="lbl-mem">BELLEK</span>
+      <span id="memText">—</span>
+    </div>
+  </div>
+
+  <div class="result panel" id="resultPanel">
+    <h2 id="h2-result"><span class="n">✓</span> SONUÇ</h2>
+    <div class="compare" id="compare">
+      <img id="beforeImg" src="" alt="öncesi">
+      <div class="after-wrap" id="afterWrap">
+        <img id="afterImg" src="" alt="sonrası">
+      </div>
+      <span class="tag left" id="tag-before">ÖNCE</span>
+      <span class="tag right" id="tag-after">SONRA</span>
+    </div>
+    <input type="range" class="slider" id="slider" min="0" max="100" value="50">
+    <video id="resultVideo" controls playsinline style="display:none;width:100%;border-radius:12px;background:#000;"></video>
+    <a class="dl-btn" id="dlBtn" download="upscaled.png"><span id="lbl-dl">↓ İndir</span></a>
+  </div>
+
+
+</div>
+
+<footer>
+  <a class="tt" href="https://www.tiktok.com/@novaxnn" target="_blank" rel="noopener">
+    <svg viewBox="0 0 24 24"><path d="M16.6 5.82c-.9-.83-1.5-1.98-1.63-3.27h-3.03v13.3c0 1.6-1.3 2.9-2.9 2.9a2.9 2.9 0 0 1 0-5.8c.28 0 .55.04.8.11V9.94a6 6 0 0 0-.8-.05 5.98 5.98 0 1 0 5.98 5.98V9.1a8.1 8.1 0 0 0 4.68 1.48V7.55a4.85 4.85 0 0 1-3.1-1.73z"/></svg>
+    @novaxnn
+  </a>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.min.js"></script>
+<script>
+// Kendi Colab notebook linkin hazır olunca burayı değiştir:
+const COLAB_URL = 'https://colab.research.google.com/';
+
+let LANG = 'tr';
+const I18N = {
+  tr: {
+    'h2-upload':'1 NE YÜKLEYECEKSİN', 'h2-model':'2 MODEL SEÇ', 'h2-where':'3 NEREDE ÇALIŞSIN',
+    'h2-colab':'4 COLAB\'A BAĞLAN', 'h2-result':'✓ SONUÇ',
+    'lbl-scale':'ÖLÇEK', 'lbl-mem':'BELLEK', 'lbl-dl':'↓ İndir',
+    'tag-before':'ÖNCE', 'tag-after':'SONRA',
+    'desc-re':'Düz renk + çizgi sanatı korur, en dengeli seçim',
+    'badge-wf':'EN NET', 'desc-wf':'Çizgi netliğinde en iyisi, tekil kareler için',
+    'desc-a4':'En hızlı, canlı oynatım için optimize',
+    'badge-vid':'VİDEO', 'desc-vid':'Video karesi tutarlılığı önceliği',
+    'hint-models':'Görseller temsilidir, gerçek çıktı değildir — her modelin karakteristik farkını göstermek için.',
+    modeImage:'Görsel', modeVideo:'Video',
+    whereDevice:'Cihazda (GPU)', whereDeviceBeta:'Cihazda <span class="beta-tag">BETA</span>', whereCloud:'Colab',
+    openColabBtn:'↗ Colab notebook\'unu aç',
+    dropBig:'Dokunup seç ya da sürükle bırak',
+    dropSubImage:'PNG, JPG · tek kare', dropSubVideo:'MP4, MOV · kısa klip önerilir',
+    notConnected:'Bağlı değil', connected:'Bağlandı ·',
+    runBtnIdle:'Önce görsel/video yükle', runBtnReady:'Upscale et',
+  },
+  en: {
+    'h2-upload':'1 WHAT TO UPLOAD', 'h2-model':'2 CHOOSE MODEL', 'h2-where':'3 WHERE TO RUN',
+    'h2-colab':'4 CONNECT TO COLAB', 'h2-result':'✓ RESULT',
+    'lbl-scale':'SCALE', 'lbl-mem':'MEMORY', 'lbl-dl':'↓ Download',
+    'tag-before':'BEFORE', 'tag-after':'AFTER',
+    'desc-re':'Preserves flat colors + line art, most balanced choice',
+    'badge-wf':'SHARPEST', 'desc-wf':'Best line sharpness, for single frames',
+    'desc-a4':'Fastest, optimized for live playback',
+    'badge-vid':'VIDEO', 'desc-vid':'Prioritizes video frame consistency',
+    'hint-models':'Images are illustrative, not real output — shown to demonstrate each model\'s characteristic style.',
+    modeImage:'Image', modeVideo:'Video',
+    whereDevice:'On Device (GPU)', whereDeviceBeta:'On Device <span class="beta-tag">BETA</span>', whereCloud:'Colab',
+    openColabBtn:'↗ Open Colab notebook',
+    dropBig:'Tap to select or drag & drop',
+    dropSubImage:'PNG, JPG · single frame', dropSubVideo:'MP4, MOV · short clip recommended',
+    notConnected:'Not connected', connected:'Connected ·',
+    runBtnIdle:'Upload an image/video first', runBtnReady:'Upscale',
+  }
+};
+
+function applyLang(lang){
+  LANG = lang;
+  ['h2-upload','h2-model','h2-where','h2-colab','h2-result','lbl-scale','lbl-mem','lbl-dl',
+   'tag-before','tag-after','desc-re','badge-wf','desc-wf','desc-a4','badge-vid','desc-vid','hint-models'
+  ].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.textContent = I18N[lang][id];
+  });
+  document.getElementById('modeImage').textContent = I18N[lang].modeImage;
+  document.getElementById('modeVideo').textContent = I18N[lang].modeVideo;
+  document.getElementById('whereCloud').textContent = I18N[lang].whereCloud;
+  document.getElementById('whereDevice').innerHTML = currentMode==='video' ? I18N[lang].whereDeviceBeta : I18N[lang].whereDevice;
+  document.getElementById('openColabBtn').textContent = I18N[lang].openColabBtn;
+  dropBig.textContent = uploadedFile ? uploadedFile.name : I18N[lang].dropBig;
+  dropSub.textContent = currentMode==='image' ? I18N[lang].dropSubImage : I18N[lang].dropSubVideo;
+  if(!endpointInput.value.trim()){ connText.textContent = I18N[lang].notConnected; }
+  runBtn.textContent = uploadedFile ? I18N[lang].runBtnReady : I18N[lang].runBtnIdle;
+  langBtn.textContent = lang==='tr' ? 'EN' : 'TR';
+}
+
+const langBtn = document.getElementById('langBtn');
+langBtn.addEventListener('click', ()=> applyLang(LANG==='tr' ? 'en' : 'tr'));
+
+let uploadedFile = null;
+let uploadedDataUrl = null;
+let selectedModel = 'realesrgan-anime';
+let selectedScale = 2;
+let currentMode = 'image';
+
+const fileInput = document.getElementById('fileInput');
+const drop = document.getElementById('drop');
+const dropBig = document.getElementById('dropBig');
+const dropSub = document.getElementById('dropSub');
+const previewRow = document.getElementById('previewRow');
+const runBtn = document.getElementById('runBtn');
+const statusEl = document.getElementById('status');
+const endpointInput = document.getElementById('endpoint');
+const connDot = document.getElementById('connDot');
+const connText = document.getElementById('connText');
+
+document.getElementById('modeImage').addEventListener('click', ()=> setMode('image'));
+document.getElementById('modeVideo').addEventListener('click', ()=> setMode('video'));
+
+let whereRun = 'device';
+const whereRunPanel = document.getElementById('whereRunPanel');
+const colabPanel = document.getElementById('colabPanel');
+
+document.getElementById('whereDevice').addEventListener('click', ()=> setWhere('device'));
+document.getElementById('whereCloud').addEventListener('click', ()=> setWhere('cloud'));
+
+function setWhere(w){
+  whereRun = w;
+  document.getElementById('whereDevice').classList.toggle('sel', w==='device');
+  document.getElementById('whereCloud').classList.toggle('sel', w==='cloud');
+  colabPanel.style.display = (w==='cloud') ? 'block' : 'none';
+}
+setWhere('device');
+
+function setMode(mode){
+  currentMode = mode;
+  document.getElementById('modeImage').classList.toggle('sel', mode==='image');
+  document.getElementById('modeVideo').classList.toggle('sel', mode==='video');
+  fileInput.accept = mode==='image' ? 'image/*' : 'video/*';
+  dropSub.textContent = mode==='image' ? I18N[LANG].dropSubImage : I18N[LANG].dropSubVideo;
+  uploadedFile = null; uploadedDataUrl = null;
+  previewRow.innerHTML = '';
+  dropBig.textContent = I18N[LANG].dropBig;
+  runBtn.disabled = true;
+  runBtn.textContent = I18N[LANG].runBtnIdle;
+  // video modunda otomatik olarak video modeline geç
+  const whereDeviceBtn = document.getElementById('whereDevice');
+  if(mode==='video'){
+    document.querySelectorAll('#modelGrid .opt-card').forEach(c=>c.classList.remove('sel'));
+    const v = document.querySelector('[data-model="realesr-animevideo"]');
+    v.classList.add('sel');
+    selectedModel = 'realesr-animevideo';
+    whereDeviceBtn.innerHTML = I18N[LANG].whereDeviceBeta;
+    setWhere('cloud');
+  }else{
+    whereDeviceBtn.textContent = I18N[LANG].whereDevice;
+    setWhere('device');
+  }
+}
+
+fileInput.addEventListener('change', e => {
+  if(e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+});
+['dragenter','dragover'].forEach(ev=>{
+  drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); });
+});
+['dragleave','drop'].forEach(ev=>{
+  drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); });
+});
+drop.addEventListener('drop', e=>{
+  if(e.dataTransfer.files && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+
+function handleFile(file){
+  uploadedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    uploadedDataUrl = e.target.result;
+    if(currentMode === 'image'){
+      previewRow.innerHTML = `<img class="thumb" src="${uploadedDataUrl}">`;
+    }else{
+      previewRow.innerHTML = `<video class="thumb" src="${uploadedDataUrl}" muted></video>`;
+    }
+    dropBig.textContent = file.name;
+    runBtn.disabled = false;
+    runBtn.textContent = I18N[LANG].runBtnReady;
+  };
+  reader.readAsDataURL(file);
+}
+
+document.querySelectorAll('#modelGrid .opt-card').forEach(card=>{
+  card.addEventListener('click', ()=>{
+    document.querySelectorAll('#modelGrid .opt-card').forEach(c=>c.classList.remove('sel'));
+    card.classList.add('sel');
+    selectedModel = card.dataset.model;
+  });
+});
+document.querySelectorAll('.scale-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.scale-btn').forEach(b=>b.classList.remove('sel'));
+    btn.classList.add('sel');
+    selectedScale = parseInt(btn.dataset.scale);
+  });
+});
+
+function showStatus(msg, type){
+  statusEl.textContent = msg;
+  statusEl.className = 'status show' + (type ? ' '+type : '');
+}
+
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressPct = document.getElementById('progressPct');
+const progressEta = document.getElementById('progressEta');
+const memText = document.getElementById('memText');
+
+function progressShow(){ progressWrap.classList.add('show'); }
+function progressHide(){ progressWrap.classList.remove('show'); }
+function updateProgress(pct, etaSeconds, memLabel){
+  progressFill.style.width = Math.min(100, Math.max(0,pct)) + '%';
+  progressPct.textContent = Math.round(pct) + '%';
+  progressEta.textContent = (etaSeconds==null) ? '—' : (etaSeconds < 1 ? 'bitiyor…' : '~' + Math.ceil(etaSeconds) + ' sn kaldı');
+  if(memLabel) memText.textContent = memLabel;
+}
+
+function markConnected(url){
+  endpointInput.value = url;
+  connDot.classList.add('ok');
+  connText.textContent = I18N[LANG].connected + ' ' + url.replace(/^https?:\/\//,'');
+}
+
+// --- Colab'ı aç + sekmeye dönünce panodan otomatik algıla ---
+document.getElementById('openColabBtn').addEventListener('click', ()=>{
+  window.open(COLAB_URL, '_blank');
+});
+
+window.addEventListener('focus', async ()=>{
+  try{
+    const text = await navigator.clipboard.readText();
+    const match = text.match(/https:\/\/[a-z0-9-]+\.gradio\.live/i);
+    if(match){
+      markConnected(match[0]);
+      showStatus('Colab bağlantısı panodan otomatik algılandı.', 'ok');
+    }
+  }catch(e){
+    // clipboard izni yoksa sessizce geç, manuel giriş her zaman çalışır
+  }
+});
+
+endpointInput.addEventListener('input', ()=>{
+  const val = endpointInput.value.trim();
+  if(/^https:\/\/[a-z0-9-]+\.gradio\.live/i.test(val)){
+    connDot.classList.add('ok');
+    connText.textContent = I18N[LANG].connected + ' ' + val.replace(/^https?:\/\//,'');
+  }else{
+    connDot.classList.remove('ok');
+    connText.textContent = I18N[LANG].notConnected;
+  }
+});
+
+// --- Cihazda çalıştırma: onnxruntime-web + WebGPU/WASM, küçük Real-ESRGAN modeli ---
+const ONNX_MODEL_URL = 'https://huggingface.co/jonathanst29/tinier-upscale-models/resolve/main/realesr-general-x4v3.onnx';
+let ortSession = null;
+
+async function getSession(){
+  if(ortSession) return ortSession;
+  showStatus('Model indiriliyor (ilk seferde ~5MB, sonra önbellekte kalır)…', '');
+  try{
+    ortSession = await ort.InferenceSession.create(ONNX_MODEL_URL, { executionProviders: ['webgpu'] });
+  }catch(e){
+    ortSession = await ort.InferenceSession.create(ONNX_MODEL_URL, { executionProviders: ['wasm'] });
+  }
+  return ortSession;
+}
+
+function clamp255(v){ return Math.max(0, Math.min(255, v)); }
+
+function showVideoResult(sourceUrl, outUrl){
+  document.getElementById('compare').style.display = 'none';
+  document.getElementById('slider').style.display = 'none';
+  const rv = document.getElementById('resultVideo');
+  rv.style.display = 'block';
+  rv.src = outUrl;
+  document.getElementById('dlBtn').href = outUrl;
+  document.getElementById('dlBtn').download = 'upscaled.webm';
+  document.getElementById('resultPanel').classList.add('show');
+}
+function showImageResult(){
+  document.getElementById('compare').style.display = 'block';
+  document.getElementById('slider').style.display = 'block';
+  document.getElementById('resultVideo').style.display = 'none';
+}
+
+// --- BETA: video kareleri tek tek çıkarıp cihazda upscale eder, sonra tekrar videoya paketler ---
+async function runOnDeviceVideo(){
+  const session = await getSession();
+  progressShow();
+  updateProgress(0, null, 'BETA · video hazırlanıyor…');
+
+  const videoEl = document.createElement('video');
+  videoEl.muted = true;
+  videoEl.playsInline = true;
+  videoEl.src = uploadedDataUrl;
+  await new Promise((res, rej)=>{ videoEl.onloadedmetadata = res; videoEl.onerror = rej; });
+
+  const duration = videoEl.duration;
+  const FPS = 10; // cihazda yönetilebilir tutmak için düşürülmüş kare hızı
+  const totalFrames = Math.max(1, Math.min(300, Math.floor(duration * FPS)));
+
+  const MAX_SIDE = 320; // videoda daha küçük — cihaz belleği + süre için
+  let vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+  if(Math.max(vw,vh) > MAX_SIDE){
+    const ratio = MAX_SIDE/Math.max(vw,vh);
+    vw = Math.round(vw*ratio); vh = Math.round(vh*ratio);
+  }
+  const scaleFactor = 4;
+  const outW = vw*scaleFactor, outH = vh*scaleFactor;
+
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = vw; srcCanvas.height = vh;
+  const srcCtx = srcCanvas.getContext('2d');
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = outW; outCanvas.height = outH;
+  const outCtx = outCanvas.getContext('2d');
+
+  if(!outCanvas.captureStream){
+    throw new Error('Bu tarayıcı video kaydını desteklemiyor (captureStream yok).');
+  }
+  const stream = outCanvas.captureStream(0); // manuel kare yakalama
+  const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9' });
+  const chunks = [];
+  recorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
+  const recordDone = new Promise(res => { recorder.onstop = res; });
+  recorder.start();
+
+  const TILE = 96;
+  const cols = Math.ceil(vw/TILE), rows = Math.ceil(vh/TILE);
+  const startTime = performance.now();
+
+  for(let f=0; f<totalFrames; f++){
+    const t = Math.min(f / FPS, duration - 0.001);
+    videoEl.currentTime = t;
+    await new Promise(res => { videoEl.onseeked = res; });
+    srcCtx.drawImage(videoEl, 0, 0, vw, vh);
+
+    for(let ty=0; ty<rows; ty++){
+      for(let tx=0; tx<cols; tx++){
+        const x0=tx*TILE, y0=ty*TILE;
+        const tw=Math.min(TILE, vw-x0), th=Math.min(TILE, vh-y0);
+        const tileData = srcCtx.getImageData(x0,y0,tw,th);
+        const tf = new Float32Array(3*tw*th);
+        for(let i=0;i<tw*th;i++){
+          tf[i]=tileData.data[i*4]/255;
+          tf[tw*th+i]=tileData.data[i*4+1]/255;
+          tf[2*tw*th+i]=tileData.data[i*4+2]/255;
+        }
+        const inputTensor = new ort.Tensor('float32', tf, [1,3,th,tw]);
+        const feeds={}; feeds[session.inputNames[0]]=inputTensor;
+        const results = await session.run(feeds);
+        const outT = results[session.outputNames[0]];
+        const [,,oh,ow] = outT.dims;
+        const od = outT.data;
+        const tileOutCanvas = document.createElement('canvas');
+        tileOutCanvas.width=ow; tileOutCanvas.height=oh;
+        const tCtx = tileOutCanvas.getContext('2d');
+        const tileOutData = tCtx.createImageData(ow,oh);
+        for(let i=0;i<ow*oh;i++){
+          tileOutData.data[i*4]=clamp255(od[i]*255);
+          tileOutData.data[i*4+1]=clamp255(od[ow*oh+i]*255);
+          tileOutData.data[i*4+2]=clamp255(od[2*ow*oh+i]*255);
+          tileOutData.data[i*4+3]=255;
+        }
+        tCtx.putImageData(tileOutData,0,0);
+        outCtx.drawImage(tileOutCanvas, x0*scaleFactor, y0*scaleFactor);
+      }
+    }
+
+    if(stream.getVideoTracks()[0].requestFrame) stream.getVideoTracks()[0].requestFrame();
+
+    const elapsed = (performance.now()-startTime)/1000;
+    const avgPerFrame = elapsed/(f+1);
+    const remaining = avgPerFrame*(totalFrames-f-1);
+    const pct = ((f+1)/totalFrames)*100;
+    updateProgress(pct, remaining, 'BETA · kare ' + (f+1) + '/' + totalFrames + ' · cihazda');
+  }
+
+  recorder.stop();
+  await recordDone;
+  const blob = new Blob(chunks, { type: 'video/webm' });
+  const outUrl = URL.createObjectURL(blob);
+
+  showVideoResult(uploadedDataUrl, outUrl);
+  progressHide();
+}
+
+async function runOnDevice(){
+  const session = await getSession();
+  progressShow();
+  updateProgress(0, null, 'model yükleniyor…');
+
+  // Görseli yükle, çok büyükse cihazda bellek taşmasın diye sınırla
+  const img = await new Promise((res, rej)=>{
+    const im = new Image();
+    im.onload = ()=>res(im);
+    im.onerror = rej;
+    im.src = uploadedDataUrl;
+  });
+
+  const MAX_SIDE = 640; // cihaz belleği için güvenli üst sınır
+  let w = img.width, h = img.height;
+  if(Math.max(w,h) > MAX_SIDE){
+    const ratio = MAX_SIDE / Math.max(w,h);
+    w = Math.round(w*ratio); h = Math.round(h*ratio);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+
+  // Görseli karolara böl: hem daha az bellek kullanır hem GERÇEK ilerleme yüzdesi verir
+  const TILE = 128;
+  const scaleFactor = 4; // modelin sabit ölçeği
+  const cols = Math.ceil(w / TILE);
+  const rows = Math.ceil(h / TILE);
+  const totalTiles = cols * rows;
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = w * scaleFactor;
+  outCanvas.height = h * scaleFactor;
+  const outCtx = outCanvas.getContext('2d');
+
+  // Tek bir karonun tahmini bellek ayak izi (giriş + çıkış float32 tensörleri)
+  const tileFootprintMB = ((TILE*TILE*3*4) + (TILE*scaleFactor*TILE*scaleFactor*3*4)) / (1024*1024);
+
+  let completed = 0;
+  const startTime = performance.now();
+  updateProgress(0, null, '~' + tileFootprintMB.toFixed(1) + ' MB / karo (hesaplanan)');
+
+  for(let ty=0; ty<rows; ty++){
+    for(let tx=0; tx<cols; tx++){
+      const x0 = tx*TILE, y0 = ty*TILE;
+      const tw = Math.min(TILE, w-x0);
+      const th = Math.min(TILE, h-y0);
+      const tileData = ctx.getImageData(x0, y0, tw, th);
+
+      const tf = new Float32Array(3*tw*th);
+      for(let i=0;i<tw*th;i++){
+        tf[i] = tileData.data[i*4] / 255;
+        tf[tw*th + i] = tileData.data[i*4+1] / 255;
+        tf[2*tw*th + i] = tileData.data[i*4+2] / 255;
+      }
+      const inputTensor = new ort.Tensor('float32', tf, [1,3,th,tw]);
+      const feeds = {};
+      feeds[session.inputNames[0]] = inputTensor;
+      const results = await session.run(feeds);
+      const outT = results[session.outputNames[0]];
+      const [, , oh, ow] = outT.dims;
+      const od = outT.data;
+
+      const tileOutCanvas = document.createElement('canvas');
+      tileOutCanvas.width = ow; tileOutCanvas.height = oh;
+      const tCtx = tileOutCanvas.getContext('2d');
+      const tileOutData = tCtx.createImageData(ow, oh);
+      for(let i=0;i<ow*oh;i++){
+        tileOutData.data[i*4]   = clamp255(od[i] * 255);
+        tileOutData.data[i*4+1] = clamp255(od[ow*oh + i] * 255);
+        tileOutData.data[i*4+2] = clamp255(od[2*ow*oh + i] * 255);
+        tileOutData.data[i*4+3] = 255;
+      }
+      tCtx.putImageData(tileOutData, 0, 0);
+      outCtx.drawImage(tileOutCanvas, x0*scaleFactor, y0*scaleFactor);
+
+      completed++;
+      const elapsed = (performance.now() - startTime) / 1000;
+      const avgPerTile = elapsed / completed;
+      const remaining = avgPerTile * (totalTiles - completed);
+      const pct = (completed/totalTiles) * 100;
+      updateProgress(pct, remaining, '~' + tileFootprintMB.toFixed(1) + ' MB / karo (hesaplanan, ' + completed + '/' + totalTiles + ' karo)');
+    }
+  }
+
+  const outDataUrl = outCanvas.toDataURL('image/png');
+
+  document.getElementById('beforeImg').src = uploadedDataUrl;
+  document.getElementById('afterImg').src = outDataUrl;
+  document.getElementById('dlBtn').href = outDataUrl;
+  document.getElementById('dlBtn').download = 'upscaled.png';
+  showImageResult();
+  document.getElementById('resultPanel').classList.add('show');
+  setupSlider();
+  progressHide();
+}
+
+runBtn.addEventListener('click', async ()=>{
+  if(!uploadedDataUrl){
+    showStatus('Önce bir görsel/video yükle.', 'err');
+    return;
+  }
+
+  if(whereRun === 'device'){
+    runBtn.disabled = true;
+    runBtn.textContent = 'İşleniyor…';
+    try{
+      if(currentMode === 'video'){
+        await runOnDeviceVideo();
+        showStatus('Tamamlandı · cihazda çalıştı (BETA).', 'ok');
+      }else{
+        await runOnDevice();
+        showStatus('Tamamlandı · cihazda çalıştı.', 'ok');
+      }
+    }catch(err){
+      progressHide();
+      showStatus('Cihazda işlenemedi: ' + err.message + ' — bu telefon/tarayıcı desteklemiyor olabilir, Colab\'a geçebilirsin.', 'err');
+    }finally{
+      runBtn.disabled = false;
+      runBtn.textContent = I18N[LANG].runBtnReady;
+    }
+    return;
+  }
+
+  // whereRun === 'cloud'
+  const endpoint = endpointInput.value.trim();
+  if(!endpoint){
+    showStatus('Önce Colab\'a bağlan.', 'err');
+    return;
+  }
+  runBtn.disabled = true;
+  runBtn.textContent = 'Gönderiliyor…';
+  showStatus('Colab sunucusuna bağlanılıyor · model: '+selectedModel+' · ölçek: '+selectedScale+'×', '');
+  progressShow();
+  updateProgress(2, null, 'Colab\'dan ölçülecek…');
+
+  // Gerçek ilerleme Gradio'nun tek istek/cevap yapısında yok — geçen süreye göre
+  // tahmini bir ilerleme gösteriyoruz, sonuç gelince %100'e tamamlanıyor.
+  const estTotal = selectedModel.includes('video') ? 240 : (selectedScale >= 4 ? 45 : 20);
+  const cloudStart = performance.now();
+  const progTimer = setInterval(()=>{
+    const elapsed = (performance.now() - cloudStart) / 1000;
+    const pct = Math.min(92, (elapsed/estTotal) * 100);
+    updateProgress(pct, Math.max(0, estTotal - elapsed), 'Colab\'dan ölçülecek… (tahmini ilerleme)');
+  }, 500);
+
+  try{
+    const base = endpoint.replace(/\/$/, '');
+    const res = await fetch(base + '/run/predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ data: [uploadedDataUrl, selectedModel, selectedScale] })
+    });
+    if(!res.ok) throw new Error('Sunucu ' + res.status + ' döndü');
+    const json = await res.json();
+    const outMedia = (json.data && json.data[0]) ? json.data[0] : null;
+    if(!outMedia) throw new Error('Sunucudan sonuç gelmedi — Gradio çıktı formatını kontrol et.');
+
+    // Notebook'a eklediğimiz gerçek GPU bellek verisi (varsa)
+    const gpuUsed = json.data[1];
+    const gpuTotal = json.data[2];
+    clearInterval(progTimer);
+    if(gpuUsed != null && gpuTotal != null){
+      updateProgress(100, 0, gpuUsed + ' MB / ' + gpuTotal + ' MB (Colab GPU, gerçek tepe kullanım)');
+    }else{
+      updateProgress(100, 0, 'Colab bu sürümde bellek verisi döndürmüyor');
+    }
+
+    document.getElementById('beforeImg').src = uploadedDataUrl;
+    document.getElementById('afterImg').src = outMedia;
+    document.getElementById('dlBtn').href = outMedia;
+    document.getElementById('dlBtn').download = 'upscaled.png';
+    showImageResult();
+    document.getElementById('resultPanel').classList.add('show');
+    setupSlider();
+    showStatus('Tamamlandı.', 'ok');
+  }catch(err){
+    clearInterval(progTimer);
+    progressHide();
+    showStatus('Bağlantı hatası: ' + err.message + ' — Colab hücresi çalışıyor mu ve link doğru mu kontrol et.', 'err');
+  }finally{
+    runBtn.disabled = false;
+    runBtn.textContent = I18N[LANG].runBtnReady;
+  }
+});
+
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+
+function setupSlider(){
+  const slider = document.getElementById('slider');
+  const afterWrap = document.getElementById('afterWrap');
+  const compare = document.getElementById('compare');
+  const beforeImg = document.getElementById('beforeImg');
+
+  function update(){
+    const pct = slider.value;
+    afterWrap.style.width = pct + '%';
+    const w = compare.clientWidth;
+    document.getElementById('afterImg').style.width = w + 'px';
+  }
+  slider.addEventListener('input', update);
+  if(beforeImg.complete) update(); else beforeImg.onload = update;
+  window.addEventListener('resize', update);
+}
+</script>
+</body>
+</html>
