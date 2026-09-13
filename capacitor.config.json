@@ -1,0 +1,9 @@
+{
+  "appId": "com.novaxnn.upscaler",
+  "appName": "Nova Upscaler",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "android": {
+    "allowMixedContent": true
+  }
+}
